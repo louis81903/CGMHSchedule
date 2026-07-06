@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>長庚體系門診查詢</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            padding: 15px; 
+            background: #f4f4f9; 
+            margin: 0;
+        }
+        .container { 
+            max-width: 800px; 
+            margin: auto; 
+            background: #fff; 
+            padding: 20px; 
+            border-radius: 10px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h2 { text-align: center; color: #333; margin-top: 0; }
+        
+        .dept-tabs { 
+            display: flex; 
+            justify-content: center; 
+            gap: 15px; 
+            margin-bottom: 20px; 
+        }
+        .dept-btn { 
+            padding: 10px 30px; 
+            border: 2px solid #0056b3; 
+            background: #fff; 
+            color: #0056b3; 
+            border-radius: 25px; 
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer; 
+            transition: all 0.3s ease;
+        }
+        .dept-btn.active { 
+            background: #0056b3; 
+            color: #fff; 
+        }
+        
+        .filters { 
+            display: flex; 
+            flex-wrap: wrap;
+            gap: 10px; 
+            margin-bottom: 20px; 
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        select { 
+            flex: 1;
+            min-width: 120px;
+            padding: 10px; 
+            border-radius: 5px; 
+            border: 1px solid #ccc; 
+            font-size: 16px; 
+            background-color: white;
+            outline: none;
+        }
+        
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; border: 1px solid #ddd; text-align: center; font-size: 15px; }
+        th { background: #0056b3; color: white; white-space: nowrap;}
+        tr:nth-child(even) { background-color: #f8f9fa; }
+        
+        .doctors-cell { text-align: left; font-weight: bold; color: #2c3e50; line-height: 1.6; }
+        .doctor-note { color: #d9534f; font-size: 0.85em; font-weight: normal; }
+        .no-data { text-align: center; padding: 30px; color: #777; font-style: italic; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>長庚體系門診查詢系統</h2>
+    
+    <div class="dept-tabs">
+        <button class="dept-btn active" id="btn-風免科" onclick="switchDept('風免科')">風免科</button>
+        <button class="dept-btn" id="btn-皮膚科" onclick="switchDept('皮膚科')">皮膚科</button>
+    </div>
+
+    <div class="filters">
+        <select id="branchFilter" onchange="renderTable()">
+            <option value="all">所有院區</option>
+            <option value="基隆長庚">基隆長庚</option>
+            <option value="台北長庚">台北長庚</option>
+            <option value="林口長庚">林口長庚</option>
+            <option value="桃園長庚">桃園長庚</option>
+            <option value="土城醫院">土城醫院</option>
+        </select>
+        <select id="dayFilter" onchange="renderTable()">
+            <option value="all">所有星期</option>
+            <option value="星期一">星期一</option>
+            <option value="星期二">星期二</option>
+            <option value="星期三">星期三</option>
+            <option value="星期四">星期四</option>
+            <option value="星期五">星期五</option>
+            <option value="星期六">星期六</option>
+        </select>
+        <select id="doctorFilter" onchange="renderTable()">
+            <option value="all">所有醫師</option>
+        </select>
+    </div>
+
+    <table id="scheduleTable">
+        <thead>
+            <tr>
+                <th width="15%">星期</th>
+                <th width="20%">院區</th>
+                <th width="15%">時段</th>
+                <th width="50%">醫師名單</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+</div>
+
+<script>
+    let currentDept = '風免科';
+    
+    const scheduleData = [
+        // =========== 風免科 ===========
+        { dept: "風免科", branch: "台北長庚", day: "星期一", time: "上午", doctor: "余光輝", note: "" },
+        { dept: "風免科", branch: "台北長庚", day: "星期一", time: "上午", doctor: "陳孟萱", note: "" },
+        { dept: "風免科", branch: "台北長庚", day: "星期一", time: "下午", doctor: "詹天明", note: "" },
+        { dept: "風免科", branch: "台北長庚", day: "星期一", time: "下午", doctor: "賴振宏", note: "" },
+        { dept: "風免科", branch: "台北長庚", day: "星期二", time: "上午", doctor: "陳彥輔", note: "" },
+        { dept: "風免科", branch: "台北長庚", day: "星期二", time: "上午", doctor: "吳詹永嬌", note: "" },
+        { dept: "風免科", branch: "台北長庚", day: "星期二", time: "下午", doctor: "陳彥輔", note: "" },
+        { dept: "風免科", branch: "台北長庚", day: "星期二", time: "下午", doctor: "蕭朝陽", note: "雙週" },
+        { dept: "風免科", branch: "台北長庚", day: "星期三", time: "上午", doctor: "曾文逸", note: "" },
+        { dept: "風免科", branch: "台北長庚", day: "星期三", time: "上午", doctor: "謝孟儒", note: "雙週" },
+        { dept: "風免科", branch: "台北長庚", day: "星期三", time: "下午", doctor: "賴振宏", note: "" },
+        { dept: "風免科", branch: "台北長庚", day: "星期四", time: "上午", doctor: "蕭朝陽", note: "" },
+        { dept: "風免科", branch: "台北長庚", day: "星期四", time: "上午", doctor: "楊曜嘉", note: "" },
+        { dept: "風免科", branch: "台北長庚", day: "星期四", time: "下午", doctor: "蔡秉翰", note: "" },
+        { dept: "風免科", branch: "台北長庚", day: "星期四", time: "下午", doctor: "蔡昀臻", note: "雙週" },
+        { dept: "風免科", branch: "台北長庚", day: "星期四", time: "下午", doctor: "謝孟儒", note: "單週" },
+        { dept: "風免科", branch: "台北長庚", day: "星期五", time: "上午", doctor: "郭昶甫", note: "雙週" },
+        { dept: "風免科", branch: "台北長庚", day: "星期五", time: "上午", doctor: "蕭朝陽", note: "" },
+        { dept: "風免科", branch: "台北長庚", day: "星期五", time: "上午", doctor: "蔡昀臻", note: "單週" },
+        { dept: "風免科", branch: "台北長庚", day: "星期五", time: "下午", doctor: "賴振宏", note: "" },
+        { dept: "風免科", branch: "台北長庚", day: "星期五", time: "下午", doctor: "黃思偉", note: "" },
+
+        { dept: "風免科", branch: "林口長庚", day: "星期一", time: "上午", doctor: "蔡秉翰", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期一", time: "上午", doctor: "謝臻怡", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期一", time: "上午", doctor: "劉烈邦", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期一", time: "下午", doctor: "蔡秉翰", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期一", time: "下午", doctor: "蕭朝陽", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期一", time: "下午", doctor: "蔡昀臻", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期二", time: "上午", doctor: "曾文逸", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期二", time: "上午", doctor: "陳基益", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期二", time: "上午", doctor: "黃思偉", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期二", time: "下午", doctor: "詹天明", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期二", time: "下午", doctor: "李蒔青", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期二", time: "下午", doctor: "謝孟儒", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期三", time: "上午", doctor: "方耀凡", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期三", time: "上午", doctor: "郭昶甫", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期三", time: "上午", doctor: "陳基益", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期三", time: "下午", doctor: "陳彥輔", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期三", time: "下午", doctor: "余光輝", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期三", time: "下午", doctor: "張哲慈", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期四", time: "上午", doctor: "陳彥輔", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期四", time: "上午", doctor: "詹天明", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期四", time: "上午", doctor: "楊宗翰", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期四", time: "下午", doctor: "方耀凡", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期四", time: "下午", doctor: "黃思偉", note: "雙週" },
+        { dept: "風免科", branch: "林口長庚", day: "星期四", time: "下午", doctor: "蔡昀臻", note: "單週" },
+        { dept: "風免科", branch: "林口長庚", day: "星期四", time: "下午", doctor: "賴振宏", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期五", time: "上午", doctor: "方耀凡", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期五", time: "上午", doctor: "余光輝", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期五", time: "上午", doctor: "賴振宏", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期五", time: "下午", doctor: "陳彥輔", note: "雙週" },
+        { dept: "風免科", branch: "林口長庚", day: "星期五", time: "下午", doctor: "詹天明", note: "" },
+        { dept: "風免科", branch: "林口長庚", day: "星期五", time: "下午", doctor: "張哲慈", note: "" },
+
+        { dept: "風免科", branch: "桃園長庚", day: "星期一", time: "上午", doctor: "宋昭榕", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期一", time: "上午", doctor: "謝孟儒", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期一", time: "上午", doctor: "陳基益", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期一", time: "下午", doctor: "洪郁祺", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期一", time: "下午", doctor: "謝孟儒", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期一", time: "下午", doctor: "陳彥輔", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期二", time: "上午", doctor: "蔡昀臻", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期二", time: "上午", doctor: "方耀凡", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期二", time: "下午", doctor: "蕭朝陽", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期二", time: "下午", doctor: "張哲慈", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期二", time: "下午", doctor: "余光輝", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期三", time: "上午", doctor: "趙祥元", note: "單週" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期三", time: "上午", doctor: "楊曜嘉", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期三", time: "上午", doctor: "陳彥輔", note: "雙週" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期三", time: "上午", doctor: "詹天明", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期三", time: "下午", doctor: "蔡侑桓", note: "雙週" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期三", time: "下午", doctor: "蕭朝陽", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期三", time: "下午", doctor: "黃思偉", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期四", time: "上午", doctor: "張哲慈", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期四", time: "下午", doctor: "吳聲旻", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期四", time: "下午", doctor: "李蒔青", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期四", time: "下午", doctor: "吳詹永嬌", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期五", time: "上午", doctor: "李英誠", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期五", time: "上午", doctor: "趙祥元", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期五", time: "下午", doctor: "方耀凡", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期六", time: "上午", doctor: "蔡昀臻", note: "" },
+        { dept: "風免科", branch: "桃園長庚", day: "星期六", time: "上午", doctor: "張哲慈", note: "" },
+
+        { dept: "風免科", branch: "土城醫院", day: "星期一", time: "上午", doctor: "黃思偉", note: "" },
+        { dept: "風免科", branch: "土城醫院", day: "星期一", time: "上午", doctor: "李蒔青", note: "單週" },
+        { dept: "風免科", branch: "土城醫院", day: "星期一", time: "下午", doctor: "黃思偉", note: "" },
+        { dept: "風免科", branch: "土城醫院", day: "星期一", time: "夜診", doctor: "趙祥元", note: "" },
+        { dept: "風免科", branch: "土城醫院", day: "星期二", time: "上午", doctor: "楊曜嘉", note: "雙週" },
+        { dept: "風免科", branch: "土城醫院", day: "星期二", time: "上午", doctor: "詹天明", note: "單週" },
+        { dept: "風免科", branch: "土城醫院", day: "星期二", time: "下午", doctor: "趙祥元", note: "" },
+        { dept: "風免科", branch: "土城醫院", day: "星期二", time: "夜診", doctor: "趙祥元", note: "單週" },
+        { dept: "風免科", branch: "土城醫院", day: "星期三", time: "上午", doctor: "劉烈邦", note: "" },
+        { dept: "風免科", branch: "土城醫院", day: "星期四", time: "上午", doctor: "趙祥元", note: "雙週" },
+        { dept: "風免科", branch: "土城醫院", day: "星期四", time: "上午", doctor: "謝孟儒", note: "單週" },
+        { dept: "風免科", branch: "土城醫院", day: "星期四", time: "上午", doctor: "蔡秉翰", note: "" },
+        { dept: "風免科", branch: "土城醫院", day: "星期四", time: "下午", doctor: "趙祥元", note: "" },
+        { dept: "風免科", branch: "土城醫院", day: "星期四", time: "下午", doctor: "劉烈邦", note: "" },
+        { dept: "風免科", branch: "土城醫院", day: "星期四", time: "夜診", doctor: "蕭朝陽", note: "" },
+        { dept: "風免科", branch: "土城醫院", day: "星期五", time: "下午", doctor: "楊曜嘉", note: "" },
+        { dept: "風免科", branch: "土城醫院", day: "星期五", time: "下午", doctor: "謝孟儒", note: "" },
+        { dept: "風免科", branch: "土城醫院", day: "星期五", time: "下午", doctor: "蔡秉翰", note: "" },
+        { dept: "風免科", branch: "土城醫院", day: "星期六", time: "上午", doctor: "蕭朝陽", note: "雙週" },
+        { dept: "風免科", branch: "土城醫院", day: "星期六", time: "上午", doctor: "謝臻怡", note: "第1週" },
+        { dept: "風免科", branch: "土城醫院", day: "星期六", time: "上午", doctor: "李蒔青", note: "" },
+        { dept: "風免科", branch: "土城醫院", day: "星期六", time: "下午", doctor: "楊曜嘉", note: "單週" },
+        { dept: "風免科", branch: "土城醫院", day: "星期六", time: "下午", doctor: "蕭朝陽", note: "雙週" },
+
+        { dept: "風免科", branch: "基隆長庚", day: "星期一", time: "上午", doctor: "曾文逸", note: "" },
+        { dept: "風免科", branch: "基隆長庚", day: "星期一", time: "下午", doctor: "吳詹永嬌", note: "" },
+        { dept: "風免科", branch: "基隆長庚", day: "星期一", time: "下午", doctor: "曾文逸", note: "" },
+        { dept: "風免科", branch: "基隆長庚", day: "星期一", time: "夜診", doctor: "吳詹永嬌", note: "" },
+        { dept: "風免科", branch: "基隆長庚", day: "星期二", time: "下午", doctor: "羅緯麟", note: "" },
+        { dept: "風免科", branch: "基隆長庚", day: "星期二", time: "夜診", doctor: "羅緯麟", note: "" },
+        { dept: "風免科", branch: "基隆長庚", day: "星期三", time: "上午", doctor: "吳詹永嬌", note: "" },
+        { dept: "風免科", branch: "基隆長庚", day: "星期三", time: "下午", doctor: "吳詹永嬌", note: "" },
+        { dept: "風免科", branch: "基隆長庚", day: "星期四", time: "下午", doctor: "曾文逸", note: "" },
+        { dept: "風免科", branch: "基隆長庚", day: "星期四", time: "夜診", doctor: "曾文逸", note: "" },
+        { dept: "風免科", branch: "基隆長庚", day: "星期五", time: "上午", doctor: "羅緯麟", note: "" },
+        { dept: "風免科", branch: "基隆長庚", day: "星期五", time: "上午", doctor: "吳詹永嬌", note: "" },
+        { dept: "風免科", branch: "基隆長庚", day: "星期五", time: "下午", doctor: "羅緯麟", note: "" },
+        { dept: "風免科", branch: "基隆長庚", day: "星期六", time: "上午", doctor: "羅緯麟", note: "" },
+
+        // =========== 皮膚科 ===========
+        { dept: "皮膚科", branch: "台北長庚", day: "星期一", time: "上午", doctor: "蕭靜燕", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期一", time: "下午", doctor: "吳吉妮", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期一", time: "下午", doctor: "楊世鈞", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期一", time: "下午", doctor: "盧俊瑋", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期一", time: "下午", doctor: "紀景琪", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期一", time: "下午", doctor: "莊雅慧", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期一", time: "下午", doctor: "洪宏翔", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期一", time: "夜診", doctor: "楊靜宜", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期一", time: "夜診", doctor: "王芳穎", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期二", time: "上午", doctor: "李華恩", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期二", time: "上午", doctor: "鐘文宏", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期二", time: "上午", doctor: "施一新", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期二", time: "上午", doctor: "胡倩婷", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期二", time: "下午", doctor: "林盈芳", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期二", time: "下午", doctor: "黃毓惠", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期二", time: "下午", doctor: "張雅菁", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期二", time: "下午", doctor: "何信君", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期二", time: "下午", doctor: "官裕宗", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期二", time: "夜診", doctor: "王芳穎", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期三", time: "上午", doctor: "吳吉妮", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期三", time: "上午", doctor: "李華恩", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期三", time: "上午", doctor: "紀景琪", note: "雙週" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期三", time: "上午", doctor: "陳冠伃", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期三", time: "上午", doctor: "吳明穎", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期三", time: "下午", doctor: "鄭椿昱", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期三", time: "下午", doctor: "張學倫", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期三", time: "下午", doctor: "孫培倫", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期三", time: "下午", doctor: "林瀚文", note: "單週" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期三", time: "下午", doctor: "洪宏翔", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期三", time: "夜診", doctor: "黃耀立", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期三", time: "夜診", doctor: "盧俊瑋", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期四", time: "上午", doctor: "楊靜宜", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期四", time: "上午", doctor: "黃易欣", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期四", time: "上午", doctor: "陳俊賓", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期四", time: "上午", doctor: "王芳穎", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期四", time: "上午", doctor: "丁思文", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期四", time: "下午", doctor: "紀敏慧", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期四", time: "下午", doctor: "鐘文宏", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期四", time: "下午", doctor: "莊雅慧", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期四", time: "下午", doctor: "張學倫", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期四", time: "夜診", doctor: "黃毓惠", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期四", time: "夜診", doctor: "許仲瑤", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期五", time: "上午", doctor: "施欣妤", note: "女,單週" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期五", time: "下午", doctor: "陳俊賓", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期五", time: "下午", doctor: "吳明穎", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期五", time: "夜診", doctor: "陳建勳", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期五", time: "夜診", doctor: "黃昭瑜", note: "女" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期六", time: "下午", doctor: "王芳穎", note: "女" },
+
+        { dept: "皮膚科", branch: "林口長庚", day: "星期一", time: "上午", doctor: "許仲瑤", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期一", time: "上午", doctor: "李華恩", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期一", time: "上午", doctor: "黃毓惠", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期一", time: "上午", doctor: "莊雅慧", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期一", time: "上午", doctor: "黃俊憲", note: "" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期一", time: "下午", doctor: "許仲瑤", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期一", time: "下午", doctor: "鐘文宏", note: "" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期一", time: "下午", doctor: "張雅菁", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期一", time: "下午", doctor: "陳冠伃", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期一", time: "下午", doctor: "吳明穎", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期一", time: "下午", doctor: "孫培倫", note: "" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期一", time: "夜診", doctor: "高珮容", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期二", time: "上午", doctor: "張曜宇", note: "" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期二", time: "上午", doctor: "林靜怡", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期二", time: "上午", doctor: "紀景琪", note: "" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期二", time: "上午", doctor: "葛宗昀", note: "" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期二", time: "上午", doctor: "黃昭瑜", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期二", time: "上午", doctor: "林千又", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期二", time: "下午", doctor: "吳吉妮", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期二", time: "下午", doctor: "紀敏慧", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期二", time: "下午", doctor: "陳俊賓", note: "" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期二", time: "下午", doctor: "呂賴穎", note: "" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期二", time: "下午", doctor: "葛宗昀", note: "" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期二", time: "下午", doctor: "黃昭瑜", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期二", time: "夜診", doctor: "吳明穎", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期三", time: "上午", doctor: "黃毓惠", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期三", time: "上午", doctor: "許仲瑤", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期三", time: "上午", doctor: "盧俊瑋", note: "" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期三", time: "上午", doctor: "張雅菁", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期三", time: "上午", doctor: "孫培倫", note: "" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期三", time: "下午", doctor: "陳俊賓", note: "" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期三", time: "下午", doctor: "陳冠伃", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期三", time: "下午", doctor: "吳明穎", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期三", time: "下午", doctor: "黃易欣", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期三", time: "下午", doctor: "施欣妤", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期三", time: "下午", doctor: "林瀚文", note: "" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期四", time: "上午", doctor: "陳俊賓", note: "單週" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期四", time: "上午", doctor: "鐘文宏", note: "" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期四", time: "上午", doctor: "莊雅慧", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期四", time: "上午", doctor: "洪宏翔", note: "雙週" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期四", time: "上午", doctor: "吳明穎", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期四", time: "下午", doctor: "吳吉妮", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期四", time: "下午", doctor: "盧俊瑋", note: "" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期四", time: "下午", doctor: "莊雅慧", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期四", time: "下午", doctor: "王芳穎", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期四", time: "下午", doctor: "林千又", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期四", time: "夜診", doctor: "江品萱", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期五", time: "上午", doctor: "吳吉妮", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期五", time: "上午", doctor: "張曜宇", note: "" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期五", time: "上午", doctor: "紀敏慧", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期五", time: "上午", doctor: "李華恩", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期五", time: "上午", doctor: "許仲瑤", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期五", time: "上午", doctor: "紀景琪", note: "" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期五", time: "下午", doctor: "鐘文宏", note: "自費藥物過敏門診" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期五", time: "下午", doctor: "張曜宇", note: "" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期五", time: "下午", doctor: "黃毓惠", note: "女,單週" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期五", time: "下午", doctor: "葛宗昀", note: "" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期五", time: "下午", doctor: "林千又", note: "女" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期五", time: "下午", doctor: "孫培倫", note: "" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期五", time: "夜診", doctor: "葛宗昀", note: "" },
+        { dept: "皮膚科", branch: "林口長庚", day: "星期六", time: "下午", doctor: "李書豪", note: "" },
+
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期一", time: "上午", doctor: "黃易欣", note: "女" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期一", time: "下午", doctor: "黃俊憲", note: "" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期一", time: "下午", doctor: "林千又", note: "女" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期一", time: "下午", doctor: "張學倫", note: "" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期一", time: "夜診", doctor: "張學倫", note: "" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期二", time: "上午", doctor: "李書豪", note: "" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期二", time: "上午", doctor: "林盈芳", note: "女" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期二", time: "下午", doctor: "鄭椿昱", note: "" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期二", time: "下午", doctor: "李美青", note: "女" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期二", time: "夜診", doctor: "鄭椿昱", note: "" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期三", time: "上午", doctor: "黃易欣", note: "女" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期三", time: "上午", doctor: "林盈芳", note: "女" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期三", time: "下午", doctor: "呂賴穎", note: "女" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期三", time: "下午", doctor: "林盈芳", note: "女" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期三", time: "下午", doctor: "胡倩婷", note: "女" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期四", time: "上午", doctor: "鄭椿昱", note: "" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期四", time: "上午", doctor: "黃易欣", note: "女" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期四", time: "上午", doctor: "林盈芳", note: "女" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期四", time: "下午", doctor: "鄭椿昱", note: "" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期四", time: "夜診", doctor: "林盈芳", note: "女" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期五", time: "上午", doctor: "張學倫", note: "" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期五", time: "下午", doctor: "葛宗昀", note: "" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期五", time: "夜診", doctor: "張學倫", note: "單週" },
+        { dept: "皮膚科", branch: "桃園長庚", day: "星期六", time: "下午", doctor: "鄭椿昱", note: "" },
+
+        { dept: "皮膚科", branch: "土城醫院", day: "星期一", time: "上午", doctor: "高珮容", note: "女" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期一", time: "上午", doctor: "呂賴穎", note: "" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期一", time: "上午", doctor: "張曜宇", note: "單週" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期一", time: "下午", doctor: "高珮容", note: "女" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期一", time: "下午", doctor: "丁思文", note: "" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期一", time: "夜診", doctor: "黃易欣", note: "女" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期一", time: "夜診", doctor: "呂賴穎", note: "" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期二", time: "上午", doctor: "黃俊憲", note: "" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期二", time: "下午", doctor: "高珮容", note: "女" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期二", time: "下午", doctor: "黃俊憲", note: "" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期二", time: "下午", doctor: "丁思文", note: "雙週" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期二", time: "下午", doctor: "楊靜宜", note: "女" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期二", time: "夜診", doctor: "楊靜宜", note: "女" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期二", time: "夜診", doctor: "高珮容", note: "女,雙週" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期三", time: "上午", doctor: "江品萱", note: "女" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期三", time: "下午", doctor: "李書豪", note: "" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期三", time: "下午", doctor: "江品萱", note: "女" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期三", time: "下午", doctor: "丁思文", note: "" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期三", time: "夜診", doctor: "李書豪", note: "" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期三", time: "夜診", doctor: "高珮容", note: "女" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期四", time: "上午", doctor: "高珮容", note: "女" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期四", time: "上午", doctor: "江品萱", note: "女,單週" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期四", time: "上午", doctor: "楊靜宜", note: "女,雙週" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期四", time: "下午", doctor: "黃俊憲", note: "" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期四", time: "下午", doctor: "丁思文", note: "" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期四", time: "夜診", doctor: "黃俊憲", note: "" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期五", time: "上午", doctor: "李書豪", note: "" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期五", time: "上午", doctor: "張學倫", note: "靜脈曲張特診" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期五", time: "下午", doctor: "李書豪", note: "" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期五", time: "下午", doctor: "江品萱", note: "女" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期五", time: "下午", doctor: "楊靜宜", note: "女" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期五", time: "夜診", doctor: "江品萱", note: "女" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期五", time: "夜診", doctor: "楊靜宜", note: "女" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期六", time: "上午", doctor: "李書豪", note: "" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期六", time: "上午", doctor: "楊靜宜", note: "女" },
+        { dept: "皮膚科", branch: "土城醫院", day: "星期六", time: "下午", doctor: "吳明穎", note: "女" },
+
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期一", time: "上午", doctor: "翁培鈞", note: "" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期一", time: "上午", doctor: "陳俊賓", note: "" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期一", time: "上午", doctor: "紀敏慧", note: "女" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期一", time: "下午", doctor: "呂昆霖", note: "" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期一", time: "下午", doctor: "何信君", note: "" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期一", time: "夜診", doctor: "廖靜瑜", note: "女" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期二", time: "上午", doctor: "呂昆霖", note: "" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期二", time: "上午", doctor: "楊世鈞", note: "" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期二", time: "上午", doctor: "洪宏翔", note: "" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期二", time: "下午", doctor: "呂昆霖", note: "" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期二", time: "下午", doctor: "鐘文宏", note: "14:00看診" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期二", time: "下午", doctor: "施一新", note: "" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期三", time: "上午", doctor: "楊世鈞", note: "" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期三", time: "下午", doctor: "廖靜瑜", note: "女" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期三", time: "下午", doctor: "張學倫", note: "第4週" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期四", time: "上午", doctor: "呂昆霖", note: "單週" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期四", time: "上午", doctor: "許仲瑤", note: "女" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期四", time: "上午", doctor: "洪宏翔", note: "單週" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期四", time: "上午", doctor: "陳俊賓", note: "雙週" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期四", time: "上午", doctor: "林靜怡", note: "女,雙週" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期四", time: "下午", doctor: "翁培鈞", note: "" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期四", time: "下午", doctor: "呂昆霖", note: "單週" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期四", time: "下午", doctor: "何信君", note: "" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期五", time: "上午", doctor: "翁培鈞", note: "" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期五", time: "上午", doctor: "洪宏翔", note: "" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期五", time: "上午", doctor: "何信君", note: "" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期五", time: "下午", doctor: "翁培鈞", note: "" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期五", time: "下午", doctor: "楊世鈞", note: "" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期五", time: "下午", doctor: "施一新", note: "" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期五", time: "夜診", doctor: "翁培鈞", note: "" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期六", time: "上午", doctor: "翁培鈞", note: "" },
+        { dept: "皮膚科", branch: "基隆長庚", day: "星期六", time: "上午", doctor: "楊世鈞", note: "" }
+    ];
+
+    window.switchDept = function(dept) {
+        currentDept = dept;
+        document.querySelectorAll('.dept-btn').forEach(btn => {
+            if (btn.id === 'btn-' + dept) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+        updateDoctorOptions();
+        renderTable();
+    };
+
+    function updateDoctorOptions() {
+        const select = document.getElementById('doctorFilter');
+        select.value = 'all'; 
+        select.innerHTML = '<option value="all">所有醫師</option>';
+        const docs = [...new Set(scheduleData.filter(i => i.dept === currentDept).map(i => i.doctor))].sort();
+        docs.forEach(doc => { 
+            if(!doc.includes('教學') && !doc.includes('醫師輪看診')) {
+                select.innerHTML += `<option value="${doc}">${doc}</option>`; 
+            }
+        });
+    }
+
+    function renderTable() {
+        const bVal = document.getElementById('branchFilter').value;
+        const dVal = document.getElementById('dayFilter').value;
+        const docVal = document.getElementById('doctorFilter').value;
+        
+        const filteredData = scheduleData.filter(item => {
+            return item.dept === currentDept && 
+                   (bVal === 'all' || item.branch === bVal) && 
+                   (dVal === 'all' || item.day === dVal) && 
+                   (docVal === 'all' || item.doctor === docVal);
+        });
+
+        const groupedMap = {};
+        filteredData.forEach(item => {
+            const key = `${item.day}|${item.branch}|${item.time}`;
+            if (!groupedMap[key]) {
+                groupedMap[key] = { day: item.day, branch: item.branch, time: item.time, doctors: [] };
+            }
+            let docName = item.doctor;
+            if (item.note) {
+                docName += `<span class="doctor-note">(${item.note})</span>`;
+            }
+            groupedMap[key].doctors.push(docName);
+        });
+
+        const groupedArray = Object.values(groupedMap);
+        const dayOrder = { "星期一": 1, "星期二": 2, "星期三": 3, "星期四": 4, "星期五": 5, "星期六": 6 };
+        const branchOrder = { "基隆長庚": 1, "台北長庚": 2, "林口長庚": 3, "桃園長庚": 4, "土城醫院": 5 };
+        const timeOrder = { "上午": 1, "下午": 2, "夜診": 3 };
+        
+        groupedArray.sort((a, b) => {
+            if (dayOrder[a.day] !== dayOrder[b.day]) return dayOrder[a.day] - dayOrder[b.day];
+            if (branchOrder[a.branch] !== branchOrder[b.branch]) return branchOrder[a.branch] - branchOrder[b.branch];
+            return timeOrder[a.time] - timeOrder[b.time];
+        });
+
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        
+        if (groupedArray.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="no-data">查無符合條件的門診資料</td></tr>';
+            return;
+        }
+
+        groupedArray.forEach(item => {
+            tbody.innerHTML += `<tr>
+                <td>${item.day}</td>
+                <td>${item.branch}</td>
+                <td>${item.time}</td>
+                <td class="doctors-cell">${item.doctors.join('、')}</td>
+            </tr>`;
+        });
+    }
+
+    // ★★★ 終極解決方案：強制立即呼叫一次（無視 window.onload） ★★★
+    // 確保即使在外掛預覽網站中，也能在載入瞬間畫出表格！
+    try {
+        updateDoctorOptions();
+        renderTable();
+        
+        // 保險起見，替所有 select 綁定監聽器，確保 iOS Safari 絕對有反應
+        document.getElementById('branchFilter').addEventListener('change', renderTable);
+        document.getElementById('dayFilter').addEventListener('change', renderTable);
+        document.getElementById('doctorFilter').addEventListener('change', renderTable);
+    } catch (e) {
+        console.error("Initialization error:", e);
+    }
+</script>
+</body>
+</html>
