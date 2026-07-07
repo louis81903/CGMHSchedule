@@ -127,7 +127,7 @@
         { dept: "風免科", branch: "台北長庚", day: "星期一", time: "上午", doctor: "余光輝", note: "" },
         { dept: "風免科", branch: "台北長庚", day: "星期一", time: "上午", doctor: "陳孟萱", note: "" },
         { dept: "風免科", branch: "台北長庚", day: "星期一", time: "下午", doctor: "詹天明", note: "" },
-        { dept: "風免科", branch: "台北長庚", day: "星期一", time: "下午", doctor: "賴振宏", note: "" },
+        { dept: "風免科", branch: "台北長庚", day: "星期一", time: "下午", doctor: "羅淑芬", note: "" },
         { dept: "風免科", branch: "台北長庚", day: "星期二", time: "上午", doctor: "陳彥輔", note: "" },
         { dept: "風免科", branch: "台北長庚", day: "星期二", time: "上午", doctor: "吳詹永嬌", note: "" },
         { dept: "風免科", branch: "台北長庚", day: "星期二", time: "下午", doctor: "陳彥輔", note: "" },
@@ -256,7 +256,6 @@
         { dept: "皮膚科", branch: "台北長庚", day: "星期一", time: "夜診", doctor: "楊靜宜", note: "女" },
         { dept: "皮膚科", branch: "台北長庚", day: "星期一", time: "夜診", doctor: "王芳穎", note: "女" },
         { dept: "皮膚科", branch: "台北長庚", day: "星期二", time: "上午", doctor: "李華恩", note: "" },
-        { dept: "皮膚科", branch: "台北長庚", day: "星期二", time: "上午", doctor: "鐘文宏", note: "" },
         { dept: "皮膚科", branch: "台北長庚", day: "星期二", time: "上午", doctor: "施一新", note: "" },
         { dept: "皮膚科", branch: "台北長庚", day: "星期二", time: "上午", doctor: "胡倩婷", note: "女" },
         { dept: "皮膚科", branch: "台北長庚", day: "星期二", time: "下午", doctor: "林盈芳", note: "女" },
@@ -275,6 +274,7 @@
         { dept: "皮膚科", branch: "台北長庚", day: "星期三", time: "下午", doctor: "孫培倫", note: "" },
         { dept: "皮膚科", branch: "台北長庚", day: "星期三", time: "下午", doctor: "林瀚文", note: "單週" },
         { dept: "皮膚科", branch: "台北長庚", day: "星期三", time: "下午", doctor: "洪宏翔", note: "" },
+        { dept: "皮膚科", branch: "台北長庚", day: "星期三", time: "下午", doctor: "鐘文宏", note: "" }, // <--- 【已更正為星期三下午】
         { dept: "皮膚科", branch: "台北長庚", day: "星期三", time: "夜診", doctor: "黃耀立", note: "" },
         { dept: "皮膚科", branch: "台北長庚", day: "星期三", time: "夜診", doctor: "盧俊瑋", note: "" },
         { dept: "皮膚科", branch: "台北長庚", day: "星期四", time: "上午", doctor: "楊靜宜", note: "女" },
@@ -532,13 +532,10 @@
         });
     }
 
-    // ★★★ 終極解決方案：強制立即呼叫一次（無視 window.onload） ★★★
-    // 確保即使在外掛預覽網站中，也能在載入瞬間畫出表格！
     try {
         updateDoctorOptions();
         renderTable();
         
-        // 保險起見，替所有 select 綁定監聽器，確保 iOS Safari 絕對有反應
         document.getElementById('branchFilter').addEventListener('change', renderTable);
         document.getElementById('dayFilter').addEventListener('change', renderTable);
         document.getElementById('doctorFilter').addEventListener('change', renderTable);
